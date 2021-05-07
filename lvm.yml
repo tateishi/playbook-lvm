@@ -1,0 +1,50 @@
+- hosts: target
+  become: yes
+  vars:
+    fs: ext4
+
+  tasks:
+    - name: parted
+      parted:
+        device: "{{ item }}"
+        label: gpt
+        number: 1
+        flags:
+          - lvm
+        state: present
+        part_end: "100%"
+      loop:
+        - /dev/sdb
+        - /dev/sdc
+        - /dev/sdd
+        - /dev/sde
+        - /dev/sdf
+
+    - name: make vg
+      lvg:
+        vg: data
+        pvs: /dev/sdb1,/dev/sdc1,/dev/sdd1,/dev/sde1,/dev/sdf1
+
+    - name: make logical volume
+      lvol:
+        vg: data
+        lv: media_data
+        size: "+100%FREE"
+
+    - name: mount fs
+      mount:
+        path: /var/lib/radio
+        state: unmounted
+
+    - name: make fs
+      filesystem:
+        fstype: "{{ fs }}"
+        dev: /dev/data/media_data
+        resizefs: true
+
+    - name: mount fs
+      mount:
+        path: /var/lib/radio
+        src: /dev/data/media_data
+        state: mounted
+        fstype: "{{ fs }}"
